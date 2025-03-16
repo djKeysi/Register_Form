@@ -60,6 +60,12 @@ svg {
 	display: none;
 }
 
+.buttonRed {
+	background-color: red;
+	margin: 20px;
+	padding: 0.25em 1.5em;
+}
+
 .icon {
 	fill: currentcolor;
 	display: inline-block;
