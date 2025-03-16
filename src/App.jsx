@@ -1,121 +1,109 @@
-import { useRef, useState } from 'react';
 import styles from './app.module.css';
+import * as yup from 'yup';
+import { yupResolver } from '@hookform/resolvers/yup';
+import { useForm } from 'react-hook-form';
+import { useRef } from 'react';
+//npm i yup
+//npm i react-hook-form
+//npm install @hookform/resolvers yup
 
-const initialState = {
-	email: '',
-	password: '',
-	passwordConfirm: '',
-	loginError: null,
-};
-const useStore = () => {
-	const [state, setState] = useState(initialState);
-
-	return {
-		getState: () => state,
-		updateState: (fieldName, newValue) => {
-			setState({ ...state, [fieldName]: newValue });
-		},
-	};
-};
-const buttonFocus = (email, password, passwordConfirm, loginError, submitButtonRef) => {
-	if (
-		loginError === null &&
-		email !== '' &&
-		password !== '' &&
-		passwordConfirm !== ''
-	) {
-		submitButtonRef.current.focus();
-	}
-};
+const fieldsSchema = yup.object().shape({
+	email: yup
+		.string()
+		.matches(/^\w+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}$/, 'Неверный логин формат почты')
+		.required(),
+	password: yup
+		.string()
+		.matches(
+			/(?=.*\d.*)(?=.*[A-Z].*)(?=.*[a-z].*)(?=.*[!#$%&?].*).{8,}/,
+			'Пароль должен содержать минимум 8 символов и содержать как минимум одну цифру, одну букву верхнего регистра и одну строчную букву.',
+		)
+		.required(),
+	passwordConfirm: yup
+		.string()
+		.oneOf([yup.ref('password'), null], 'Пароли не совпадают')
+		.required('Поле не должно быть пустым'),
+});
 
 export const App = () => {
-	const { getState, updateState } = useStore();
 	const submitButtonRef = useRef(null);
+	const {
+		register,
+		handleSubmit,
+		formState: { errors },
+	} = useForm({
+		// defaultValues: {
+		// 	email: '',
+		// 	password: '',
+		// 	passwordConfirm: '',
+		// },
+		resolver: yupResolver(fieldsSchema),
+	});
 
-	let { email, password, passwordConfirm, loginError } = getState();
-	const sendData = (formData) => {
-		if (email !== '' && password !== '' && passwordConfirm !== '') {
-			console.log(formData);
-		} else {
-			loginError = 'Поля не должны быть пустыми';
-			updateState('loginError', loginError);
+	//const loginError = errors.email.password?.message;
+
+	const sendFormData = (formData) => {
+		console.log(formData);
+	};
+
+	const onBlurPasswordConfirm = () => {
+		if (
+			!errors.passwordConfirm?.message &&
+			!errors.password?.message &&
+			!errors.email?.message
+		) {
+			submitButtonRef.current.focus();
 		}
-	};
-
-	const onSubmit = (event) => {
-		event.preventDefault();
-		sendData(getState());
-	};
-
-	const onChange = ({ target }) => {
-		updateState(target.name, target.value);
-		//buttonFocus(email, password, passwordConfirm, loginError, submitButtonRef);
-	};
-
-	const onBlur = ({ target }) => {
-		if (target.name === 'email') {
-			if (!/^\w+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}$/.test(target.value)) {
-				loginError = 'Неверный формат почты';
-			} else {
-				loginError = null;
-			}
-		} else if (target.name === 'password' || target.name === 'passwordConfirm') {
-			if (
-				!/(?=.*\d.*)(?=.*[A-Z].*)(?=.*[a-z].*)(?=.*[!#$%&?].*).{8,}/.test(
-					target.value,
-				) &&
-				target.value !== ''
-			) {
-				loginError =
-					'Пароль должен содержать минимум 8 символов и содержать как минимум одну цифру, одну букву верхнего регистра и одну строчную букву.';
-			} else if (password !== passwordConfirm && passwordConfirm !== '') {
-				loginError = 'Пароли не совпадают';
-			} else {
-				loginError = null;
-			}
-		}
-		updateState('loginError', loginError);
-
-		buttonFocus(email, password, passwordConfirm, loginError, submitButtonRef);
 	};
 
 	return (
 		<div className={styles.login}>
-			<form onSubmit={onSubmit}>
+			<form onSubmit={handleSubmit(sendFormData)}>
 				<label>Почта:</label>
 				<input
 					type="email"
 					name="email"
-					value={email}
+					{...register('email')}
 					placeholder="Почта"
-					onChange={onChange}
-					onBlur={onBlur}
 				/>
+				{errors.email?.message && (
+					<div className={styles.loginError}>{errors.email?.message}</div>
+				)}
 				<label>Пароль:</label>
 				<input
 					type="password"
 					name="password"
-					value={password}
+					{...register('password')}
 					placeholder="Пароль"
-					onChange={onChange}
-					onBlur={onBlur}
 				/>
+				{errors.password?.message && (
+					<div className={styles.loginError}>{errors.password?.message}</div>
+				)}
 				<label>Подтвердите пароль:</label>
 				<input
 					type="password"
 					name="passwordConfirm"
-					value={passwordConfirm}
+					{...register('passwordConfirm')}
 					placeholder="Пароль"
-					onChange={onChange}
-					onBlur={onBlur}
+					onBlur={onBlurPasswordConfirm}
 				/>
-				{loginError && <div className={styles.loginError}>{loginError}</div>}
+				{errors.passwordConfirm?.message && (
+					<div className={styles.loginError}>
+						{errors.passwordConfirm?.message}
+					</div>
+				)}
 				<button
 					ref={submitButtonRef}
-					disabled={loginError !== null}
+					disabled={
+						errors.passwordConfirm?.message ||
+						errors.email?.message ||
+						errors.password?.message
+					}
 					type="submit"
 					className={
-						loginError !== null
+						errors.passwordConfirm?.message &&
+						errors.password?.message &&
+						errors.email?.message
 							? styles.button + ' ' + styles.buttonRed
 							: styles.button
 					}
